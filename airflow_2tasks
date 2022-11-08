@@ -1,0 +1,63 @@
+import airflow 
+from airflow import DAG
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.providers.google.cloud.operators.gcs.GCSFileTransformOperator import GCSFileTransformOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
+from datetime import timedelta
+from google.cloud import storage
+
+default_args = {
+    'start_date': airflow.utils.dates.days_ago(0),
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+     'owner': 'Airflow',
+    'depends_on_past': False,
+    'email': ['satyanaranav9@gmail.com'],
+    'email_on_failure': True,
+    'email_on_retry': False,
+    
+    }
+
+bq_load = "bq load --source"
+
+dag = DAG(
+    'bucket_to_bucket',
+    default_args=default_args,
+    description='liveness monitoring dag',
+    schedule_interval=None,
+    dagrun_timeout=timedelta(minutes=20),
+    )
+    
+t1 = BashOperator(
+    task_id="bucket_create",
+    bash_command="gsutil mb -l us -c standard gs://satya_cde_devi_das",
+    dag=dag,
+    depends_on_past=False,
+    priority_weight=2**31 - 1,
+    do_xcom_push=False,
+    )
+    
+t2 = GCSFileTransformOperator(
+     source_bucket="gs://wipro_dmc4_pcmcards/customer_details.csv",
+     source_object=None,
+     transform_script="gsutil cp -r gs://wipro_dmc4_pcmcards/customer_details.csv gs://satya_cde_devi_das",
+     destination_bucket="gs://satya_cde_devi_das",
+     destination_object=None,
+     gcp_conn_id='google_cloud_default',
+     impersonation_chain=None, **kwargs,)
+
+
+t1 >> t2
+    
+
+
+
+
+
+    
+    
+
+    
+    
+
